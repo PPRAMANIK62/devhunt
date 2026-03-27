@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/PPRAMANIK62/devhunt/internal/config"
+	"github.com/PPRAMANIK62/devhunt/internal/database"
 )
 
 func main() {
@@ -14,5 +16,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("config loaded --port=%s env=%s\n", cfg.ServerPort, cfg.Env)
+	ctx := context.Background()
+
+	db, err := database.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "database error: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	fmt.Printf("connected to postgres\nport=%s env=%s\n", cfg.ServerPort, cfg.Env)
 }

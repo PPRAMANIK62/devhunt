@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/PPRAMANIK62/devhunt/internal/config"
@@ -25,5 +26,11 @@ func main() {
 	}
 	defer db.Close()
 
-	fmt.Printf("connected to postgres\nport=%s env=%s\n", cfg.ServerPort, cfg.Env)
+	router := setupRoutes()
+
+	fmt.Printf("server listening on :%s\n", cfg.ServerPort)
+	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
+		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+		os.Exit(1)
+	}
 }

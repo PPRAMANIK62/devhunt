@@ -82,10 +82,14 @@ func (r *CompanyRepository) Update(ctx context.Context, userID string, fields ma
 		return r.FindByUserID(ctx, userID)
 	}
 
+	allowedCols := map[string]bool{"name": true, "slug": true, "description": true, "website": true}
 	setClauses := make([]string, 0, len(fields))
 	args := make([]any, 0, len(fields)+1)
 	i := 1
 	for col, val := range fields {
+		if !allowedCols[col] {
+			return nil, apperr.Internal("update company: invalid column: "+col, nil)
+		}
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, i))
 		args = append(args, val)
 		i++

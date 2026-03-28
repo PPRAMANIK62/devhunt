@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -11,11 +12,23 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type companyServicer interface {
+	Create(ctx context.Context, userID string, req models.CreateCompanyRequest) (*models.Company, error)
+	GetMine(ctx context.Context, userID string) (*models.Company, error)
+	GetByID(ctx context.Context, id string) (*models.Company, error)
+	Update(ctx context.Context, userID string, req models.UpdateCompanyRequest) (*models.Company, error)
+	Delete(ctx context.Context, userID string) error
+}
+
 type CompanyHandler struct {
-	companySvc *service.CompanyService
+	companySvc companyServicer
 }
 
 func NewCompanyHandler(s *service.CompanyService) *CompanyHandler {
+	return &CompanyHandler{companySvc: s}
+}
+
+func newCompanyHandlerWithService(s companyServicer) *CompanyHandler {
 	return &CompanyHandler{companySvc: s}
 }
 

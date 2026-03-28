@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"github.com/PPRAMANIK62/devhunt/internal/apperr"
+	"github.com/PPRAMANIK62/devhunt/internal/handler"
 	"github.com/PPRAMANIK62/devhunt/internal/middleware"
 	"github.com/PPRAMANIK62/devhunt/internal/models"
 	"github.com/go-chi/chi/v5"
 )
 
-// stubCompanyService is a local test double — no production interface needed.
+// stubCompanyService is a test double that satisfies the companyServicer interface.
 type stubCompanyService struct {
 	createFn  func(ctx context.Context, userID string, req models.CreateCompanyRequest) (*models.Company, error)
 	getMineFn func(ctx context.Context, userID string) (*models.Company, error)
@@ -23,78 +24,24 @@ type stubCompanyService struct {
 	deleteFn  func(ctx context.Context, userID string) error
 }
 
-// fakeCompanyHandler mirrors CompanyHandler but accepts the stub.
-// It avoids modifying the production handler.
-type fakeCompanyHandler struct {
-	svc *stubCompanyService
+func (s *stubCompanyService) Create(ctx context.Context, userID string, req models.CreateCompanyRequest) (*models.Company, error) {
+	return s.createFn(ctx, userID, req)
 }
 
-func (h *fakeCompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req models.CreateCompanyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	company, err := h.svc.createFn(r.Context(), middleware.GetUserID(r.Context()), req)
-	if err != nil {
-		var code int
-		switch apperr.HTTPStatus(err) {
-		case http.StatusConflict:
-			code = http.StatusConflict
-		default:
-			code = http.StatusInternalServerError
-		}
-		w.WriteHeader(code)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]any{"data": company})
+func (s *stubCompanyService) GetMine(ctx context.Context, userID string) (*models.Company, error) {
+	return s.getMineFn(ctx, userID)
 }
 
-func (h *fakeCompanyHandler) GetMine(w http.ResponseWriter, r *http.Request) {
-	company, err := h.svc.getMineFn(r.Context(), middleware.GetUserID(r.Context()))
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": company})
+func (s *stubCompanyService) GetByID(ctx context.Context, id string) (*models.Company, error) {
+	return s.getByIDFn(ctx, id)
 }
 
-func (h *fakeCompanyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	company, err := h.svc.getByIDFn(r.Context(), id)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": company})
+func (s *stubCompanyService) Update(ctx context.Context, userID string, req models.UpdateCompanyRequest) (*models.Company, error) {
+	return s.updateFn(ctx, userID, req)
 }
 
-func (h *fakeCompanyHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var req models.UpdateCompanyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	company, err := h.svc.updateFn(r.Context(), middleware.GetUserID(r.Context()), req)
-	if err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": company})
-}
-
-func (h *fakeCompanyHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	err := h.svc.deleteFn(r.Context(), middleware.GetUserID(r.Context()))
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+func (s *stubCompanyService) Delete(ctx context.Context, userID string) error {
+	return s.deleteFn(ctx, userID)
 }
 
 // withUserID injects a user_id into the request context (mimics authMW).
@@ -138,7 +85,7 @@ func TestCompanyCreate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeCompanyHandler{svc: &stubCompanyService{createFn: tc.createFn}}
+			h := handler.NewCompanyHandlerWithService(&stubCompanyService{createFn: tc.createFn})
 
 			var buf bytes.Buffer
 			json.NewEncoder(&buf).Encode(tc.body)
@@ -181,7 +128,7 @@ func TestCompanyGetMine(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeCompanyHandler{svc: &stubCompanyService{getMineFn: tc.getMineFn}}
+			h := handler.NewCompanyHandlerWithService(&stubCompanyService{getMineFn: tc.getMineFn})
 
 			req := httptest.NewRequest(http.MethodGet, "/companies/me", nil)
 			req = withUserID(req, "u1")
@@ -225,7 +172,7 @@ func TestCompanyGetByID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeCompanyHandler{svc: &stubCompanyService{getByIDFn: tc.getByIDFn}}
+			h := handler.NewCompanyHandlerWithService(&stubCompanyService{getByIDFn: tc.getByIDFn})
 
 			r := chi.NewRouter()
 			r.Get("/{id}", h.GetByID)
@@ -272,7 +219,7 @@ func TestCompanyUpdate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeCompanyHandler{svc: &stubCompanyService{updateFn: tc.updateFn}}
+			h := handler.NewCompanyHandlerWithService(&stubCompanyService{updateFn: tc.updateFn})
 
 			var buf bytes.Buffer
 			json.NewEncoder(&buf).Encode(tc.body)
@@ -313,7 +260,7 @@ func TestCompanyDelete(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeCompanyHandler{svc: &stubCompanyService{deleteFn: tc.deleteFn}}
+			h := handler.NewCompanyHandlerWithService(&stubCompanyService{deleteFn: tc.deleteFn})
 
 			req := httptest.NewRequest(http.MethodDelete, "/companies/me", nil)
 			req = withUserID(req, "u1")

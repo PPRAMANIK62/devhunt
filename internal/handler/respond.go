@@ -22,8 +22,8 @@ func writeSuccess(w http.ResponseWriter, status int, data any) {
 func writeError(w http.ResponseWriter, err error) {
 	status := apperr.HTTPStatus(err)
 
-	msg := "an internal error occured"
-	code := "INTERNAL_ERORR"
+	msg := "an internal error occurred"
+	code := "INTERNAL_ERROR"
 
 	var appErr *apperr.AppError
 	if errors.As(err, &appErr) {

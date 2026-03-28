@@ -13,12 +13,20 @@ var v = validator.New()
 func init() {
 	v.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
 		s := fl.Field().String()
+		if len(s) == 0 || s[0] == '-' || s[len(s)-1] == '-' {
+			return false
+		}
+		prev := rune(0)
 		for _, c := range s {
 			if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
 				return false
 			}
+			if c == '-' && prev == '-' {
+				return false
+			}
+			prev = c
 		}
-		return len(s) > 0 && s[0] != '-' && s[len(s)-1] != '-'
+		return true
 	})
 }
 

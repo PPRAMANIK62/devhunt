@@ -12,6 +12,7 @@ func setupRoutes(
 	authHandler *handler.AuthHandler,
 	jobHandler *handler.JobHandler,
 	companyHandler *handler.CompanyHandler,
+	applicationHandler *handler.ApplicationHandler,
 	authMW func(http.Handler) http.Handler,
 	companyMW func(http.Handler) http.Handler,
 ) http.Handler {
@@ -51,6 +52,17 @@ func setupRoutes(
 				r.Patch("/me", companyHandler.Update)
 				r.Delete("/me", companyHandler.Delete)
 			})
+		})
+
+		r.Route("/jobs/{jobID}/applications", func(r chi.Router) {
+			r.Use(authMW)
+			r.Post("/", applicationHandler.Apply)
+		})
+
+		r.Route("/applications", func(r chi.Router) {
+			r.Use(authMW)
+			r.Get("/", applicationHandler.ListMine)
+			r.Patch("/{id}/status", applicationHandler.UpdateStatus)
 		})
 	})
 

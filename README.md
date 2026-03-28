@@ -14,6 +14,20 @@ cp .env.example .env  # fill in values
 go run ./cmd/api
 ```
 
+### Seed data
+
+Populate the database with 7 companies, 50+ jobs, and a seeker account:
+
+```bash
+go run ./cmd/seed
+```
+
+Safe to re-run — wipes and recreates seed rows each time.
+
+Seed accounts (password: `password123`):
+- **seeker** — `seeker@example.com`
+- **company** — `acme@example.com`, `devstudio@example.com`, `finledger@example.com`, `neural-labs@example.com`, `forge-tools@example.com`, `pixel-agency@example.com`, `cloudnine@example.com`
+
 ### Environment variables
 
 | Variable | Required | Default | Description |

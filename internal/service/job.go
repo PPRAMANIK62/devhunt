@@ -85,7 +85,15 @@ func (s *JobService) List(ctx context.Context, page, pageSize int, f ListJobsFil
 }
 
 func (s *JobService) GetByID(ctx context.Context, id string) (*models.Job, error) {
-	return s.jobRepo.FindByID(ctx, id)
+	job, err := s.jobRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	company, err := s.companyRepo.FindByID(ctx, job.CompanyID)
+	if err == nil {
+		job.Company = company
+	}
+	return job, nil
 }
 
 func (s *JobService) Create(ctx context.Context, userID string, req models.CreateJobRequest) (*models.Job, error) {

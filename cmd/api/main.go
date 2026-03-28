@@ -12,6 +12,7 @@ import (
 	"github.com/PPRAMANIK62/devhunt/internal/database"
 	"github.com/PPRAMANIK62/devhunt/internal/handler"
 	"github.com/PPRAMANIK62/devhunt/internal/middleware"
+	"github.com/PPRAMANIK62/devhunt/internal/queue"
 	"github.com/PPRAMANIK62/devhunt/internal/repository"
 	"github.com/PPRAMANIK62/devhunt/internal/service"
 )
@@ -33,6 +34,7 @@ func main() {
 	defer db.Close()
 
 	var appCache *cache.Cache
+	var queueClient *queue.Client
 	if cfg.RedisURL != "" {
 		var err error
 		appCache, err = cache.New(cfg.RedisURL)
@@ -41,6 +43,26 @@ func main() {
 			slog.Warn("redis unavailable, caching disabled", "error", err)
 		} else {
 			defer appCache.Close()
+		}
+
+		queueClient, err = queue.NewClient(cfg.RedisURL)
+		if err != nil {
+			slog.Warn("queue client unavailable, email notifications disabled", "error", err)
+		} else {
+			defer queueClient.Close()
+		}
+
+		workerSrv, workerMux, err := queue.NewWorkerServer(cfg.RedisURL)
+		if err != nil {
+			slog.Warn("queue worker unavailable", "error", err)
+		} else {
+			go func() {
+				slog.Info("queue worker started")
+				if err := workerSrv.Run(workerMux); err != nil {
+					slog.Error("queue worker stopped", "error", err)
+				}
+			}()
+			defer workerSrv.Shutdown()
 		}
 	}
 
@@ -54,7 +76,7 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes)
 	jobSvc := service.NewJobService(jobRepo, companyRepo, appCache)
 	companySvc := service.NewCompanyService(companyRepo)
-	applicationSvc := service.NewApplicationService(applicationRepo, jobRepo, companyRepo)
+	applicationSvc := service.NewApplicationService(applicationRepo, jobRepo, companyRepo, userRepo, queueClient)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)

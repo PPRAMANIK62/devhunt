@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/PPRAMANIK62/devhunt/internal/apperr"
 	"github.com/PPRAMANIK62/devhunt/internal/models"
+	"github.com/PPRAMANIK62/devhunt/internal/queue"
+	"github.com/PPRAMANIK62/devhunt/internal/queue/tasks"
 	"github.com/PPRAMANIK62/devhunt/internal/repository"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -14,14 +17,24 @@ type ApplicationService struct {
 	appRepo     *repository.ApplicationRepository
 	jobRepo     *repository.JobRepository
 	companyRepo *repository.CompanyRepository
+	userRepo    *repository.UserRepository
+	queue       *queue.Client // nil - no background jobs
 }
 
 func NewApplicationService(
 	appRepo *repository.ApplicationRepository,
 	jobRepo *repository.JobRepository,
 	companyRepo *repository.CompanyRepository,
+	userRepo *repository.UserRepository,
+	q *queue.Client,
 ) *ApplicationService {
-	return &ApplicationService{appRepo: appRepo, jobRepo: jobRepo, companyRepo: companyRepo}
+	return &ApplicationService{
+		appRepo:     appRepo,
+		jobRepo:     jobRepo,
+		companyRepo: companyRepo,
+		userRepo:    userRepo,
+		queue:       q,
+	}
 }
 
 func (s *ApplicationService) Apply(ctx context.Context, jobID, userID string, req models.ApplyRequest) (*models.Application, error) {
@@ -48,6 +61,32 @@ func (s *ApplicationService) Apply(ctx context.Context, jobID, userID string, re
 			return nil, apperr.Conflict("you have already applied to this job")
 		}
 		return nil, apperr.Internal("create application", err)
+	}
+
+	// Enqueue the email - don't fail the request if this doesn't work
+	if s.queue != nil {
+		user, err := s.userRepo.FindByID(ctx, userID)
+		if err != nil {
+			slog.Error("failed to fetch user for confirmation email", "error", err, "user_id", userID)
+		} else {
+			company, err := s.companyRepo.FindByID(ctx, job.CompanyID)
+			if err != nil {
+				slog.Error("failed to fetch company for confirmation email", "error", err, "company_id", job.CompanyID)
+			} else {
+				if err := s.queue.EnqueueApplicationConfirmation(tasks.ApplicationConfirmationPayload{
+					ApplicantEmail: user.Email,
+					JobTitle:       job.Title,
+					CompanyName:    company.Name,
+					ApplicationID:  app.ID,
+				}); err != nil {
+					// Log and continue - the application was saved, the email can be retried manually
+					slog.Error("failed to enqueue confirmation email",
+						"error", err,
+						"application_id", app.ID,
+					)
+				}
+			}
+		}
 	}
 
 	return app, nil
@@ -86,5 +125,29 @@ func (s *ApplicationService) UpdateStatus(ctx context.Context, id, userID string
 		return nil, apperr.Forbidden("you do not have permission to update this application")
 	}
 
-	return s.appRepo.UpdateStatus(ctx, id, status)
+	updated, err := s.appRepo.UpdateStatus(ctx, id, status)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enqueue the status update email - don't fail the request if this doesn't work
+	if s.queue != nil {
+		user, err := s.userRepo.FindByID(ctx, app.UserID)
+		if err != nil {
+			slog.Error("failed to fetch user for status update email", "error", err, "user_id", app.UserID)
+		} else {
+			if err := s.queue.EnqueueStatusUpdate(tasks.StatusUpdatePayload{
+				ApplicantEmail: user.Email,
+				JobTitle:       job.Title,
+				NewStatus:      string(status),
+			}); err != nil {
+				slog.Error("failed to enqueue status update email",
+					"error", err,
+					"application_id", id,
+				)
+			}
+		}
+	}
+
+	return updated, nil
 }

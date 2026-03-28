@@ -11,10 +11,13 @@ const (
 )
 
 type User struct {
-	ID           string    `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"` // "-" = never included in JSON output
-	Role         UserRole  `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                          string     `json:"id"`
+	Email                       string     `json:"email"`
+	PasswordHash                string     `json:"-"`
+	Role                        UserRole   `json:"role"`
+	EmailVerified               bool       `json:"email_verified"`
+	VerificationToken           *string    `json:"-"`
+	VerificationTokenExpiresAt  *time.Time `json:"-"`
+	CreatedAt                   time.Time  `json:"created_at"`
+	UpdatedAt                   time.Time  `json:"updated_at"`
 }

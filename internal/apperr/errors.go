@@ -14,6 +14,7 @@ const (
 	TypeForbidden    ErrorType = "FORBIDDEN"
 	TypeValidation   ErrorType = "VALIDATION_ERROR"
 	TypeConflict     ErrorType = "CONFLICT"
+	TypeGone         ErrorType = "GONE"
 	TypeInternal     ErrorType = "INTERNAL_ERROR"
 	TypeExternal     ErrorType = "EXTERNAL_SERVICE_ERROR"
 )
@@ -66,6 +67,12 @@ func Conflict(msg string) *AppError {
 		Message: msg,
 	}
 }
+func Gone(msg string) *AppError {
+	return &AppError{
+		Type:    TypeGone,
+		Message: msg,
+	}
+}
 func Internal(msg string, cause error) *AppError {
 	return &AppError{
 		Type:    TypeInternal,
@@ -98,6 +105,8 @@ func HTTPStatus(err error) int {
 		return http.StatusBadRequest
 	case TypeConflict:
 		return http.StatusConflict
+	case TypeGone:
+		return http.StatusGone
 	case TypeExternal:
 		return http.StatusServiceUnavailable
 	default:

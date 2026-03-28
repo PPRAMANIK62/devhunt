@@ -16,6 +16,8 @@ type Config struct {
 	JWTExpiryMinutes int
 	ServerPort       string
 	Env              string
+	ResendAPIKey     string
+	AppBaseURL       string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +32,8 @@ func Load() (*Config, error) {
 		JWTSecret:        os.Getenv("JWT_SECRET"),
 		ServerPort:       os.Getenv("SERVER_PORT"),
 		Env:              os.Getenv("ENV"),
+		ResendAPIKey:     os.Getenv("RESEND_API_KEY"),
+		AppBaseURL:       os.Getenv("APP_BASE_URL"),
 	}
 
 	// Fail immediately if critical values are missing.
@@ -47,6 +51,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.Env == "" {
 		cfg.Env = "development"
+	}
+	if cfg.AppBaseURL == "" {
+		cfg.AppBaseURL = "http://localhost:5173"
 	}
 
 	mins, err := strconv.Atoi(os.Getenv("JWT_EXPIRY_MINUTES"))

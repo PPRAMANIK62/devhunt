@@ -53,8 +53,8 @@ type company struct {
 func insertCompany(ctx context.Context, db *pgxpool.Pool, email, name, slug, description, website string) (company, error) {
 	var userID string
 	err := db.QueryRow(ctx, `
-		INSERT INTO users (email, password_hash, role)
-		VALUES ($1, $2, 'company') RETURNING id
+		INSERT INTO users (email, password_hash, role, email_verified)
+		VALUES ($1, $2, 'company', true) RETURNING id
 	`, email, hash("password123")).Scan(&userID)
 	if err != nil {
 		return company{}, fmt.Errorf("insert user %s: %w", email, err)
@@ -319,8 +319,8 @@ func seed(ctx context.Context, db *pgxpool.Pool) error {
 	// ── Seeker user ───────────────────────────────────────────────────────
 	var seekerID string
 	if err := db.QueryRow(ctx, `
-		INSERT INTO users (email, password_hash, role)
-		VALUES ($1, $2, 'seeker') RETURNING id
+		INSERT INTO users (email, password_hash, role, email_verified)
+		VALUES ($1, $2, 'seeker', true) RETURNING id
 	`, "seeker@example.com", hash("password123")).Scan(&seekerID); err != nil {
 		return fmt.Errorf("insert seeker: %w", err)
 	}

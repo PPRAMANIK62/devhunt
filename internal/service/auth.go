@@ -2,10 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"log/slog"
 	"time"
 
 	"github.com/PPRAMANIK62/devhunt/internal/apperr"
 	"github.com/PPRAMANIK62/devhunt/internal/models"
+	"github.com/PPRAMANIK62/devhunt/internal/queue"
+	"github.com/PPRAMANIK62/devhunt/internal/queue/tasks"
 	"github.com/PPRAMANIK62/devhunt/internal/repository"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -21,13 +26,15 @@ type AuthService struct {
 	userRepo  *repository.UserRepository
 	jwtSecret string
 	jwtExpiry time.Duration
+	queue     *queue.Client // nil = no email sending
 }
 
-func NewAuthService(userRepo *repository.UserRepository, secret string, expiryMinutes int) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, secret string, expiryMinutes int, q *queue.Client) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
 		jwtSecret: secret,
 		jwtExpiry: time.Duration(expiryMinutes) * time.Minute,
+		queue:     q,
 	}
 }
 
@@ -38,13 +45,11 @@ type RegisterInput struct {
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, error) {
-	// Check duplicate email
 	existing, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err == nil && existing != nil {
 		return nil, apperr.Conflict("email already registered")
 	}
 
-	// bcrypt cost 12 - slow enough to make brute force impractical
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), 12)
 	if err != nil {
 		return nil, apperr.Internal("hash password", err)
@@ -60,6 +65,26 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 		return nil, apperr.Internal("create user", err)
 	}
 
+	// Generate and store verification token
+	token, err := generateToken()
+	if err != nil {
+		return nil, apperr.Internal("generate verification token", err)
+	}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if err := s.userRepo.SetVerificationToken(ctx, user.ID, token, expiresAt); err != nil {
+		return nil, err
+	}
+
+	// Enqueue verification email — don't fail registration if queue is unavailable
+	if s.queue != nil {
+		if err := s.queue.EnqueueEmailVerification(tasks.EmailVerificationPayload{
+			Email: user.Email,
+			Token: token,
+		}); err != nil {
+			slog.Error("failed to enqueue verification email", "error", err, "user_id", user.ID)
+		}
+	}
+
 	return user, nil
 }
 
@@ -71,7 +96,6 @@ type LoginOutput struct {
 func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginOutput, error) {
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		// Generic message - never say "email not found" (user enumeration)
 		return nil, apperr.Unauthorized("invalid credentials")
 	}
 
@@ -79,15 +103,57 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*Login
 		return nil, apperr.Unauthorized("invalid credentials")
 	}
 
+	if !user.EmailVerified {
+		return nil, apperr.Forbidden("please verify your email before logging in")
+	}
+
 	token, err := s.createToken(user)
 	if err != nil {
 		return nil, apperr.Internal("create token", err)
 	}
 
-	return &LoginOutput{
-		Token: token,
-		User:  user,
-	}, nil
+	return &LoginOutput{Token: token, User: user}, nil
+}
+
+func (s *AuthService) VerifyEmail(ctx context.Context, token string) error {
+	user, err := s.userRepo.FindByVerificationToken(ctx, token)
+	if err != nil {
+		return apperr.NotFound("invalid or expired verification token")
+	}
+
+	if user.VerificationTokenExpiresAt != nil && time.Now().After(*user.VerificationTokenExpiresAt) {
+		return apperr.Gone("verification token has expired")
+	}
+
+	return s.userRepo.SetVerified(ctx, user.ID)
+}
+
+func (s *AuthService) ResendVerification(ctx context.Context, email string) error {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil || user.EmailVerified {
+		// Silently succeed — don't leak whether the email exists or is verified
+		return nil
+	}
+
+	token, err := generateToken()
+	if err != nil {
+		return apperr.Internal("generate verification token", err)
+	}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if err := s.userRepo.SetVerificationToken(ctx, user.ID, token, expiresAt); err != nil {
+		return err
+	}
+
+	if s.queue != nil {
+		if err := s.queue.EnqueueEmailVerification(tasks.EmailVerificationPayload{
+			Email: user.Email,
+			Token: token,
+		}); err != nil {
+			slog.Error("failed to enqueue verification email", "error", err, "user_id", user.ID)
+		}
+	}
+
+	return nil
 }
 
 func (s *AuthService) createToken(user *models.User) (string, error) {
@@ -99,8 +165,13 @@ func (s *AuthService) createToken(user *models.User) (string, error) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.jwtSecret))
+}
 
-	return jwt.
-		NewWithClaims(jwt.SigningMethodHS256, claims).
-		SignedString([]byte(s.jwtSecret))
+func generateToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

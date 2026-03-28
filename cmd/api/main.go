@@ -52,7 +52,7 @@ func main() {
 			defer queueClient.Close()
 		}
 
-		workerSrv, workerMux, err := queue.NewWorkerServer(cfg.RedisURL)
+		workerSrv, workerMux, err := queue.NewWorkerServer(cfg.RedisURL, cfg.ResendAPIKey, cfg.AppBaseURL)
 		if err != nil {
 			slog.Warn("queue worker unavailable", "error", err)
 		} else {
@@ -73,7 +73,7 @@ func main() {
 	applicationRepo := repository.NewApplicationRepository(db)
 
 	// Services
-	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes)
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes, queueClient)
 	jobSvc := service.NewJobService(jobRepo, companyRepo, appCache)
 	companySvc := service.NewCompanyService(companyRepo)
 	applicationSvc := service.NewApplicationService(applicationRepo, jobRepo, companyRepo, userRepo, queueClient)

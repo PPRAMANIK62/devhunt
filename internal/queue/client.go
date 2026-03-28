@@ -40,3 +40,12 @@ func (c *Client) EnqueueStatusUpdate(p tasks.StatusUpdatePayload) error {
 	_, err = c.client.Enqueue(task, asynq.MaxRetry(3))
 	return err
 }
+
+func (c *Client) EnqueueEmailVerification(p tasks.EmailVerificationPayload) error {
+	task, err := tasks.NewEmailVerificationTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.client.Enqueue(task, asynq.MaxRetry(3))
+	return err
+}

@@ -8,6 +8,7 @@ import { JobDetailPage } from "@/pages/job-detail-page";
 import { JobsPage } from "@/pages/jobs-page";
 import { LoginPage } from "@/pages/login-page";
 import { RegisterPage } from "@/pages/register-page";
+import { VerifyEmailPage } from "@/pages/verify-email-page";
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -65,6 +66,7 @@ function App() {
             </AuthRoute>
           }
         />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

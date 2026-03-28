@@ -13,6 +13,8 @@ import (
 type authServicer interface {
 	Register(ctx context.Context, input service.RegisterInput) (*models.User, error)
 	Login(ctx context.Context, email, password string) (*service.LoginOutput, error)
+	VerifyEmail(ctx context.Context, token string) error
+	ResendVerification(ctx context.Context, email string) error
 }
 
 type AuthHandler struct {
@@ -83,4 +85,39 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"token": output.Token,
 		"user":  output.User,
 	})
+}
+
+func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		writeError(w, apperr.Validation("token is required"))
+		return
+	}
+
+	if err := h.authService.VerifyEmail(r.Context(), token); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeSuccess(w, http.StatusOK, map[string]any{"message": "email verified successfully"})
+}
+
+type resendVerificationRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request) {
+	var req resendVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, apperr.Validation("invalid request body"))
+		return
+	}
+	if err := validate(req); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	// Always 200 — never reveal if email exists or is already verified
+	_ = h.authService.ResendVerification(r.Context(), req.Email)
+	writeSuccess(w, http.StatusOK, map[string]any{"message": "if that email exists and is unverified, a new link has been sent"})
 }

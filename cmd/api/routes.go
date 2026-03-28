@@ -27,6 +27,8 @@ func setupRoutes(
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/register", authHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
+		r.Get("/auth/verify-email", authHandler.VerifyEmail)
+		r.Post("/auth/resend-verification", authHandler.ResendVerification)
 
 		r.Route("/jobs", func(r chi.Router) {
 			r.Get("/", jobHandler.List)

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { decodeToken } from "@/lib/auth";
+import { MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,50 +20,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/context/auth-context";
 import { api } from "@/lib/api";
 import type { User } from "@/types";
-
-interface LoginResponse {
-  token: string;
-  user: User;
-}
 
 interface RegisterResponse {
   user: User;
 }
 
 export function RegisterPage() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"seeker" | "company">("seeker");
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post<RegisterResponse>("/auth/register", {
-        email,
-        password,
-        role,
-      });
-      // Auto-login after register
-      const res = await api.post<LoginResponse>("/auth/login", {
-        email,
-        password,
-      });
-      login(res.token);
-      toast.success("Account created! Welcome to DevHunt.");
-      const payload = decodeToken(res.token);
-      navigate(payload?.role === "company" ? "/dashboard" : "/applications");
+      await api.post<RegisterResponse>("/auth/register", { email, password, role });
+      setRegistered(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (registered) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <Card className="w-full max-w-sm text-center">
+          <CardHeader>
+            <MailCheck className="mx-auto h-9 w-9 text-primary" />
+            <CardTitle className="font-display text-2xl">Check your inbox</CardTitle>
+            <CardDescription>
+              We sent a verification link to{" "}
+              <span className="font-medium text-foreground">{email}</span>.
+              Click it to activate your account.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex flex-col gap-3">
+            <Button asChild className="w-full">
+              <Link to="/login">Go to login</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (

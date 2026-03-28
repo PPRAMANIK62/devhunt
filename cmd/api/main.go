@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/PPRAMANIK62/devhunt/internal/cache"
 	"github.com/PPRAMANIK62/devhunt/internal/config"
 	"github.com/PPRAMANIK62/devhunt/internal/database"
 	"github.com/PPRAMANIK62/devhunt/internal/handler"
@@ -30,6 +32,18 @@ func main() {
 	}
 	defer db.Close()
 
+	var appCache *cache.Cache
+	if cfg.RedisURL != "" {
+		var err error
+		appCache, err = cache.New(cfg.RedisURL)
+		if err != nil {
+			// Not fatal - app works without caching
+			slog.Warn("redis unavailable, caching disabled", "error", err)
+		} else {
+			defer appCache.Close()
+		}
+	}
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	jobRepo := repository.NewJobRepository(db)
@@ -38,7 +52,7 @@ func main() {
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes)
-	jobSvc := service.NewJobService(jobRepo, companyRepo)
+	jobSvc := service.NewJobService(jobRepo, companyRepo, appCache)
 	companySvc := service.NewCompanyService(companyRepo)
 	applicationSvc := service.NewApplicationService(applicationRepo, jobRepo, companyRepo)
 

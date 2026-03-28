@@ -3,8 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/PPRAMANIK62/devhunt/internal/apperr"
+	"github.com/PPRAMANIK62/devhunt/internal/cache"
 	"github.com/PPRAMANIK62/devhunt/internal/models"
 	"github.com/PPRAMANIK62/devhunt/internal/repository"
 )
@@ -12,12 +16,14 @@ import (
 type JobService struct {
 	jobRepo     *repository.JobRepository
 	companyRepo *repository.CompanyRepository
+	cache       *cache.Cache
 }
 
-func NewJobService(jobRepo *repository.JobRepository, companyRepo *repository.CompanyRepository) *JobService {
+func NewJobService(jobRepo *repository.JobRepository, companyRepo *repository.CompanyRepository, c *cache.Cache) *JobService {
 	return &JobService{
 		jobRepo:     jobRepo,
 		companyRepo: companyRepo,
+		cache:       c,
 	}
 }
 
@@ -36,6 +42,23 @@ type ListJobsFilter struct {
 }
 
 func (s *JobService) List(ctx context.Context, page, pageSize int, f ListJobsFilter) (*ListJobsOutput, error) {
+	// Only cache unfiltered requests — filtered queries have too many combinations
+	// and are unlikely to repeat with identical parameters.
+	unfiltered := f.Search == "" && len(f.Locations) == 0 && len(f.Tags) == 0 && f.MinSalary == 0
+	cacheKey := fmt.Sprintf("jobs:list:page=%d:size=%d", page, pageSize)
+
+	// 1. Try cache first (unfiltered only)
+	if s.cache != nil && unfiltered {
+		var cached ListJobsOutput
+		hit, err := s.cache.Get(ctx, cacheKey, &cached)
+		if err != nil {
+			slog.Warn("cache get failed", "key", cacheKey, "error", err)
+		} else if hit {
+			return &cached, nil
+		}
+	}
+
+	// 2. Postgres
 	jobs, total, err := s.jobRepo.List(ctx, repository.ListFilter{
 		Status:    models.JobStatusOpen,
 		Page:      page,
@@ -48,7 +71,17 @@ func (s *JobService) List(ctx context.Context, page, pageSize int, f ListJobsFil
 	if err != nil {
 		return nil, err
 	}
-	return &ListJobsOutput{Jobs: jobs, Total: total, Page: page, PageSize: pageSize}, nil
+
+	out := &ListJobsOutput{Jobs: jobs, Total: total, Page: page, PageSize: pageSize}
+
+	// 3. Store in cache - 5 min TTL (unfiltered only)
+	if s.cache != nil && unfiltered {
+		if err := s.cache.Set(ctx, cacheKey, out, 5*time.Minute); err != nil {
+			slog.Warn("cache set failed", "key", cacheKey, "error", err)
+		}
+	}
+
+	return out, nil
 }
 
 func (s *JobService) GetByID(ctx context.Context, id string) (*models.Job, error) {
@@ -75,6 +108,12 @@ func (s *JobService) Create(ctx context.Context, userID string, req models.Creat
 	if err := s.jobRepo.Create(ctx, job); err != nil {
 		return nil, err
 	}
+
+	// Invalidate all list pages - simplest correct strategy
+	if s.cache != nil {
+		_ = s.cache.DeletePattern(ctx, "jobs:list:*")
+	}
+
 	return job, nil
 }
 
@@ -111,7 +150,16 @@ func (s *JobService) Update(ctx context.Context, id, userID string, req models.U
 		fields["status"] = *req.Status
 	}
 
-	return s.jobRepo.Update(ctx, id, fields)
+	job, err = s.jobRepo.Update(ctx, id, fields)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.cache != nil {
+		_ = s.cache.DeletePattern(ctx, "jobs:list:*")
+	}
+
+	return job, nil
 }
 
 func (s *JobService) ListMine(ctx context.Context, userID, status string) ([]*models.Job, error) {
@@ -150,5 +198,13 @@ func (s *JobService) Delete(ctx context.Context, id, userID string) error {
 		return apperr.Forbidden("you do not own this job posting")
 	}
 
-	return s.jobRepo.Delete(ctx, id)
+	if err := s.jobRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	if s.cache != nil {
+		_ = s.cache.DeletePattern(ctx, "jobs:list:*")
+	}
+
+	return nil
 }

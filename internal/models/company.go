@@ -15,14 +15,14 @@ type Company struct {
 
 type CreateCompanyRequest struct {
 	Name        string `json:"name"        validate:"required,min=2,max=100"`
-	Slug        string `json:"slug"        validate:"required,min=2,max=100,alphanum"`
+	Slug        string `json:"slug"        validate:"required,min=2,max=100,slug"`
 	Description string `json:"description" validate:"omitempty,max=1000"`
 	Website     string `json:"website"     validate:"omitempty,url"`
 }
 
 type UpdateCompanyRequest struct {
 	Name        *string `json:"name"        validate:"omitempty,min=2,max=100"`
-	Slug        *string `json:"slug"        validate:"omitempty,min=2,max=100,alphanum"`
+	Slug        *string `json:"slug"        validate:"omitempty,min=2,max=100,slug"`
 	Description *string `json:"description" validate:"omitempty,max=1000"`
 	Website     *string `json:"website"     validate:"omitempty,url"`
 }

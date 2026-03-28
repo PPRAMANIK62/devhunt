@@ -10,6 +10,18 @@ import (
 
 var v = validator.New()
 
+func init() {
+	v.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
+		s := fl.Field().String()
+		for _, c := range s {
+			if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+				return false
+			}
+		}
+		return len(s) > 0 && s[0] != '-' && s[len(s)-1] != '-'
+	})
+}
+
 func validate(input any) error {
 	err := v.Struct(input)
 	if err == nil {
@@ -38,6 +50,8 @@ func fieldError(fe validator.FieldError) string {
 		return fmt.Sprintf("%s must be one of: %s", field, fe.Param())
 	case "gtefield":
 		return fmt.Sprintf("%s must be >= %s", field, fe.Param())
+	case "slug":
+		return fmt.Sprintf("%s must be lowercase letters, numbers, and hyphens only", field)
 	default:
 		return fmt.Sprintf("%s is invalid", field)
 	}

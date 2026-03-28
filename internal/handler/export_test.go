@@ -8,3 +8,6 @@ var NewAuthHandlerWithService = newAuthHandlerWithService
 
 // NewJobHandlerWithService creates a JobHandler for testing.
 var NewJobHandlerWithService = newJobHandlerWithService
+
+// NewApplicationHandlerWithService creates an ApplicationHandler for testing.
+var NewApplicationHandlerWithService = newApplicationHandlerWithService

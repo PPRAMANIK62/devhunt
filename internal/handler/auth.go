@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -9,11 +10,20 @@ import (
 	"github.com/PPRAMANIK62/devhunt/internal/service"
 )
 
+type authServicer interface {
+	Register(ctx context.Context, input service.RegisterInput) (*models.User, error)
+	Login(ctx context.Context, email, password string) (*service.LoginOutput, error)
+}
+
 type AuthHandler struct {
-	authService *service.AuthService
+	authService authServicer
 }
 
 func NewAuthHandler(s *service.AuthService) *AuthHandler {
+	return &AuthHandler{authService: s}
+}
+
+func newAuthHandlerWithService(s authServicer) *AuthHandler {
 	return &AuthHandler{authService: s}
 }
 

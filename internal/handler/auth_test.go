@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/PPRAMANIK62/devhunt/internal/apperr"
+	handler "github.com/PPRAMANIK62/devhunt/internal/handler"
 	"github.com/PPRAMANIK62/devhunt/internal/models"
 	"github.com/PPRAMANIK62/devhunt/internal/service"
 )
@@ -18,50 +19,12 @@ type stubAuthService struct {
 	loginFn    func(ctx context.Context, email, password string) (*service.LoginOutput, error)
 }
 
-type fakeAuthHandler struct {
-	svc *stubAuthService
+func (s *stubAuthService) Register(ctx context.Context, input service.RegisterInput) (*models.User, error) {
+	return s.registerFn(ctx, input)
 }
 
-func (h *fakeAuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Email    string          `json:"email"`
-		Password string          `json:"password"`
-		Role     models.UserRole `json:"role"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	user, err := h.svc.registerFn(r.Context(), service.RegisterInput{
-		Email:    req.Email,
-		Password: req.Password,
-		Role:     req.Role,
-	})
-	if err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]any{"data": user})
-}
-
-func (h *fakeAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	output, err := h.svc.loginFn(r.Context(), req.Email, req.Password)
-	if err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"token": output.Token, "user": output.User}})
+func (s *stubAuthService) Login(ctx context.Context, email, password string) (*service.LoginOutput, error) {
+	return s.loginFn(ctx, email, password)
 }
 
 func TestAuthRegister(t *testing.T) {
@@ -99,7 +62,7 @@ func TestAuthRegister(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeAuthHandler{svc: &stubAuthService{registerFn: tc.registerFn}}
+			h := handler.NewAuthHandlerWithService(&stubAuthService{registerFn: tc.registerFn})
 
 			var buf bytes.Buffer
 			json.NewEncoder(&buf).Encode(tc.body)
@@ -153,7 +116,7 @@ func TestAuthLogin(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeAuthHandler{svc: &stubAuthService{loginFn: tc.loginFn}}
+			h := handler.NewAuthHandlerWithService(&stubAuthService{loginFn: tc.loginFn})
 
 			var buf bytes.Buffer
 			json.NewEncoder(&buf).Encode(tc.body)

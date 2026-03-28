@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/PPRAMANIK62/devhunt/internal/apperr"
-	"github.com/PPRAMANIK62/devhunt/internal/middleware"
+	handler "github.com/PPRAMANIK62/devhunt/internal/handler"
 	"github.com/PPRAMANIK62/devhunt/internal/models"
 	"github.com/PPRAMANIK62/devhunt/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -23,67 +23,24 @@ type stubJobService struct {
 	deleteFn  func(ctx context.Context, id, userID string) error
 }
 
-type fakeJobHandler struct {
-	svc *stubJobService
+func (s *stubJobService) List(ctx context.Context, page, pageSize int) (*service.ListJobsOutput, error) {
+	return s.listFn(ctx, page, pageSize)
 }
 
-func (h *fakeJobHandler) List(w http.ResponseWriter, r *http.Request) {
-	output, err := h.svc.listFn(r.Context(), 0, 0)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": output})
+func (s *stubJobService) GetByID(ctx context.Context, id string) (*models.Job, error) {
+	return s.getByIDFn(ctx, id)
 }
 
-func (h *fakeJobHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	job, err := h.svc.getByIDFn(r.Context(), chi.URLParam(r, "id"))
-	if err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": job})
+func (s *stubJobService) Create(ctx context.Context, userID string, req models.CreateJobRequest) (*models.Job, error) {
+	return s.createFn(ctx, userID, req)
 }
 
-func (h *fakeJobHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req models.CreateJobRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	job, err := h.svc.createFn(r.Context(), middleware.GetUserID(r.Context()), req)
-	if err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]any{"data": job})
+func (s *stubJobService) Update(ctx context.Context, id, userID string, req models.UpdateJobRequest) (*models.Job, error) {
+	return s.updateFn(ctx, id, userID, req)
 }
 
-func (h *fakeJobHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var req models.UpdateJobRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	job, err := h.svc.updateFn(r.Context(), chi.URLParam(r, "id"), middleware.GetUserID(r.Context()), req)
-	if err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"data": job})
-}
-
-func (h *fakeJobHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	if err := h.svc.deleteFn(r.Context(), chi.URLParam(r, "id"), middleware.GetUserID(r.Context())); err != nil {
-		w.WriteHeader(apperr.HTTPStatus(err))
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+func (s *stubJobService) Delete(ctx context.Context, id, userID string) error {
+	return s.deleteFn(ctx, id, userID)
 }
 
 func TestJobList(t *testing.T) {
@@ -110,7 +67,7 @@ func TestJobList(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeJobHandler{svc: &stubJobService{listFn: tc.listFn}}
+			h := handler.NewJobHandlerWithService(&stubJobService{listFn: tc.listFn})
 
 			req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
 			rr := httptest.NewRecorder()
@@ -152,7 +109,7 @@ func TestJobGetByID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeJobHandler{svc: &stubJobService{getByIDFn: tc.getByIDFn}}
+			h := handler.NewJobHandlerWithService(&stubJobService{getByIDFn: tc.getByIDFn})
 
 			r := chi.NewRouter()
 			r.Get("/{id}", h.GetByID)
@@ -215,7 +172,7 @@ func TestJobCreate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeJobHandler{svc: &stubJobService{createFn: tc.createFn}}
+			h := handler.NewJobHandlerWithService(&stubJobService{createFn: tc.createFn})
 
 			var buf bytes.Buffer
 			json.NewEncoder(&buf).Encode(tc.body)
@@ -267,7 +224,7 @@ func TestJobDelete(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := &fakeJobHandler{svc: &stubJobService{deleteFn: tc.deleteFn}}
+			h := handler.NewJobHandlerWithService(&stubJobService{deleteFn: tc.deleteFn})
 
 			r := chi.NewRouter()
 			r.Delete("/{id}", h.Delete)

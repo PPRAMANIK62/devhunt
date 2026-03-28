@@ -17,6 +17,7 @@ import (
 type stubApplicationService struct {
 	applyFn        func(ctx context.Context, jobID, userID string, req models.ApplyRequest) (*models.Application, error)
 	listMineFn     func(ctx context.Context, userID string) ([]*models.Application, error)
+	listByJobIDFn  func(ctx context.Context, jobID, userID string) ([]*models.Application, error)
 	updateStatusFn func(ctx context.Context, id, userID string, status models.ApplicationStatus) (*models.Application, error)
 }
 
@@ -25,6 +26,9 @@ func (s *stubApplicationService) Apply(ctx context.Context, jobID, userID string
 }
 func (s *stubApplicationService) ListMine(ctx context.Context, userID string) ([]*models.Application, error) {
 	return s.listMineFn(ctx, userID)
+}
+func (s *stubApplicationService) ListByJobID(ctx context.Context, jobID, userID string) ([]*models.Application, error) {
+	return s.listByJobIDFn(ctx, jobID, userID)
 }
 func (s *stubApplicationService) UpdateStatus(ctx context.Context, id, userID string, status models.ApplicationStatus) (*models.Application, error) {
 	return s.updateStatusFn(ctx, id, userID, status)
@@ -192,6 +196,70 @@ func TestApplicationUpdateStatus(t *testing.T) {
 			var buf bytes.Buffer
 			json.NewEncoder(&buf).Encode(tc.body)
 			req := httptest.NewRequest(http.MethodPatch, "/"+tc.id+"/status", &buf)
+			req = withUserID(req, "u1")
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != tc.wantStatus {
+				t.Errorf("want status %d, got %d", tc.wantStatus, rr.Code)
+			}
+		})
+	}
+}
+
+func TestApplicationListByJobID(t *testing.T) {
+	sampleApps := []*models.Application{
+		{ID: "a1", JobID: "j1", UserID: "u1", Status: models.AppStatusPending},
+	}
+
+	tests := []struct {
+		name          string
+		jobID         string
+		listByJobIDFn func(ctx context.Context, jobID, userID string) ([]*models.Application, error)
+		wantStatus    int
+	}{
+		{
+			name:  "success",
+			jobID: "j1",
+			listByJobIDFn: func(_ context.Context, _, _ string) ([]*models.Application, error) {
+				return sampleApps, nil
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "forbidden - not job owner",
+			jobID: "j1",
+			listByJobIDFn: func(_ context.Context, _, _ string) ([]*models.Application, error) {
+				return nil, apperr.Forbidden("you do not own this job posting")
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:  "job not found",
+			jobID: "missing",
+			listByJobIDFn: func(_ context.Context, _, _ string) ([]*models.Application, error) {
+				return nil, apperr.NotFound("job")
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:  "internal error",
+			jobID: "j1",
+			listByJobIDFn: func(_ context.Context, _, _ string) ([]*models.Application, error) {
+				return nil, apperr.Internal("db error", nil)
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := handler.NewApplicationHandlerWithService(&stubApplicationService{listByJobIDFn: tc.listByJobIDFn})
+
+			r := chi.NewRouter()
+			r.Get("/jobs/{jobID}/applications", h.ListByJobID)
+
+			req := httptest.NewRequest(http.MethodGet, "/jobs/"+tc.jobID+"/applications", nil)
 			req = withUserID(req, "u1")
 			rr := httptest.NewRecorder()
 			r.ServeHTTP(rr, req)

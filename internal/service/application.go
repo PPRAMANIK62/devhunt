@@ -57,6 +57,18 @@ func (s *ApplicationService) ListMine(ctx context.Context, userID string) ([]*mo
 	return s.appRepo.ListByUserID(ctx, userID)
 }
 
+func (s *ApplicationService) ListByJobID(ctx context.Context, jobID, userID string) ([]*models.Application, error) {
+	job, err := s.jobRepo.FindByID(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	company, err := s.companyRepo.FindByUserID(ctx, userID)
+	if err != nil || company.ID != job.CompanyID {
+		return nil, apperr.Forbidden("you do not own this job posting")
+	}
+	return s.appRepo.ListByJobID(ctx, jobID)
+}
+
 func (s *ApplicationService) UpdateStatus(ctx context.Context, id, userID string, status models.ApplicationStatus) (*models.Application, error) {
 	app, err := s.appRepo.FindByID(ctx, id)
 	if err != nil {

@@ -30,6 +30,7 @@ func setupRoutes(
 
 		r.Route("/jobs", func(r chi.Router) {
 			r.Get("/", jobHandler.List)
+			r.Get("/filters", jobHandler.GetFilterOptions)
 			r.Get("/{id}", jobHandler.GetByID)
 
 			r.Group(func(r chi.Router) {
@@ -51,12 +52,17 @@ func setupRoutes(
 				r.Get("/me", companyHandler.GetMine)
 				r.Patch("/me", companyHandler.Update)
 				r.Delete("/me", companyHandler.Delete)
+				r.Get("/me/jobs", jobHandler.ListMine)
 			})
 		})
 
 		r.Route("/jobs/{jobID}/applications", func(r chi.Router) {
 			r.Use(authMW)
 			r.Post("/", applicationHandler.Apply)
+			r.Group(func(r chi.Router) {
+				r.Use(companyMW)
+				r.Get("/", applicationHandler.ListByJobID)
+			})
 		})
 
 		r.Route("/applications", func(r chi.Router) {

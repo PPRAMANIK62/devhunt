@@ -27,12 +27,18 @@ func (r *ApplicationRepository) Create(ctx context.Context, app *models.Applicat
 		Scan(&app.ID, &app.Status, &app.AppliedAt, &app.UpdatedAt)
 }
 
-// ListByUserID returns all applications for a seeker
+// ListByUserID returns all applications for a seeker, with job title and company name.
 func (r *ApplicationRepository) ListByUserID(ctx context.Context, userID string) ([]*models.Application, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, job_id, user_id, status, cover_note, applied_at, updated_at
-		FROM applications WHERE user_id = $1
-		ORDER BY applied_at DESC
+		SELECT
+			a.id, a.job_id, a.user_id, a.status, a.cover_note, a.applied_at, a.updated_at,
+			j.title, j.status,
+			c.id, c.name
+		FROM applications a
+		JOIN jobs j ON j.id = a.job_id
+		JOIN companies c ON c.id = j.company_id
+		WHERE a.user_id = $1
+		ORDER BY a.applied_at DESC
 	`, userID)
 	if err != nil {
 		return nil, apperr.Internal("list applications", err)
@@ -42,21 +48,31 @@ func (r *ApplicationRepository) ListByUserID(ctx context.Context, userID string)
 	var apps []*models.Application
 	for rows.Next() {
 		a := &models.Application{}
-		if err := rows.Scan(&a.ID, &a.JobID, &a.UserID, &a.Status,
-			&a.CoverNote, &a.AppliedAt, &a.UpdatedAt); err != nil {
+		j := &models.Job{}
+		co := &models.Company{}
+		if err := rows.Scan(
+			&a.ID, &a.JobID, &a.UserID, &a.Status, &a.CoverNote, &a.AppliedAt, &a.UpdatedAt,
+			&j.Title, &j.Status,
+			&co.ID, &co.Name,
+		); err != nil {
 			return nil, apperr.Internal("scan application", err)
 		}
+		j.Company = co
+		a.Job = j
 		apps = append(apps, a)
 	}
 	return apps, nil
 }
 
-// ListByJobID returns all applications for a job (company view)
+// ListByJobID returns all applications for a job (company view), with applicant email.
 func (r *ApplicationRepository) ListByJobID(ctx context.Context, jobID string) ([]*models.Application, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, job_id, user_id, status, cover_note, applied_at, updated_at
-		FROM applications WHERE job_id = $1
-		ORDER BY applied_at DESC
+		SELECT a.id, a.job_id, a.user_id, a.status, a.cover_note, a.applied_at, a.updated_at,
+		       u.id, u.email
+		FROM applications a
+		JOIN users u ON u.id = a.user_id
+		WHERE a.job_id = $1
+		ORDER BY a.applied_at DESC
 	`, jobID)
 	if err != nil {
 		return nil, apperr.Internal("list applications", err)
@@ -66,10 +82,12 @@ func (r *ApplicationRepository) ListByJobID(ctx context.Context, jobID string) (
 	var apps []*models.Application
 	for rows.Next() {
 		a := &models.Application{}
-		if err := rows.Scan(&a.ID, &a.JobID, &a.UserID, &a.Status,
-			&a.CoverNote, &a.AppliedAt, &a.UpdatedAt); err != nil {
+		u := &models.User{}
+		if err := rows.Scan(&a.ID, &a.JobID, &a.UserID, &a.Status, &a.CoverNote, &a.AppliedAt, &a.UpdatedAt,
+			&u.ID, &u.Email); err != nil {
 			return nil, apperr.Internal("scan application", err)
 		}
+		a.User = u
 		apps = append(apps, a)
 	}
 	return apps, nil

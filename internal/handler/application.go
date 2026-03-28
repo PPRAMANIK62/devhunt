@@ -15,6 +15,7 @@ import (
 type applicationServicer interface {
 	Apply(ctx context.Context, jobID, userID string, req models.ApplyRequest) (*models.Application, error)
 	ListMine(ctx context.Context, userID string) ([]*models.Application, error)
+	ListByJobID(ctx context.Context, jobID, userID string) ([]*models.Application, error)
 	UpdateStatus(ctx context.Context, id, userID string, status models.ApplicationStatus) (*models.Application, error)
 }
 
@@ -50,6 +51,15 @@ func (h *ApplicationHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSuccess(w, http.StatusCreated, app)
+}
+
+func (h *ApplicationHandler) ListByJobID(w http.ResponseWriter, r *http.Request) {
+	apps, err := h.appService.ListByJobID(r.Context(), chi.URLParam(r, "jobID"), middleware.GetUserID(r.Context()))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeSuccess(w, http.StatusOK, apps)
 }
 
 func (h *ApplicationHandler) ListMine(w http.ResponseWriter, r *http.Request) {

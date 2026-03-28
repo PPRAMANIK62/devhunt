@@ -8,6 +8,10 @@ import (
 
 	"github.com/PPRAMANIK62/devhunt/internal/config"
 	"github.com/PPRAMANIK62/devhunt/internal/database"
+	"github.com/PPRAMANIK62/devhunt/internal/handler"
+	"github.com/PPRAMANIK62/devhunt/internal/middleware"
+	"github.com/PPRAMANIK62/devhunt/internal/repository"
+	"github.com/PPRAMANIK62/devhunt/internal/service"
 )
 
 func main() {
@@ -26,7 +30,12 @@ func main() {
 	}
 	defer db.Close()
 
-	router := setupRoutes()
+	userRepo := repository.NewUserRepository(db)
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes)
+	authHandler := handler.NewAuthHandler(authSvc)
+	authMw := middleware.NewAuthMiddleware(cfg.JWTSecret)
+
+	router := setupRoutes(authHandler, authMw)
 
 	fmt.Printf("server listening on :%s\n", cfg.ServerPort)
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {

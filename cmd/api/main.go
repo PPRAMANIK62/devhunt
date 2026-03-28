@@ -30,12 +30,27 @@ func main() {
 	}
 	defer db.Close()
 
+	// Repositories
 	userRepo := repository.NewUserRepository(db)
-	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes)
-	authHandler := handler.NewAuthHandler(authSvc)
-	authMw := middleware.NewAuthMiddleware(cfg.JWTSecret)
+	jobRepo := repository.NewJobRepository(db)
+	companyRepo := repository.NewCompanyRepository(db)
 
-	router := setupRoutes(authHandler, authMw)
+	// Services
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryMinutes)
+	jobSvc := service.NewJobService(jobRepo, companyRepo)
+	companySvc := service.NewCompanyService(companyRepo)
+
+	// Handlers
+	authHandler := handler.NewAuthHandler(authSvc)
+	jobHandler := handler.NewJobHandler(jobSvc)
+	companyHandler := handler.NewCompanyHandler(companySvc)
+
+	// Middlewares
+	authMw := middleware.NewAuthMiddleware(cfg.JWTSecret)
+	companyMW := middleware.NewRoleMiddleware("company")
+
+	// Router
+	router := setupRoutes(authHandler, jobHandler, companyHandler, authMw, companyMW)
 
 	fmt.Printf("server listening on :%s\n", cfg.ServerPort)
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {

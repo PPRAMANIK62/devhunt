@@ -5,7 +5,6 @@ import {
   Drawer,
   DrawerContent,
   DrawerDescription,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
@@ -45,20 +44,17 @@ export function ApplyDrawer({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <div className="mx-auto w-full max-w-lg">
-          <DrawerHeader>
-            <DrawerTitle className="font-display">Apply</DrawerTitle>
-            <DrawerDescription className="line-clamp-2">
-              {jobTitle}
-            </DrawerDescription>
-          </DrawerHeader>
+    <Drawer open={open} onOpenChange={onOpenChange} direction="right" shouldScaleBackground={false}>
+      <DrawerContent className="inset-y-0 right-0 left-auto mt-0 h-full w-full max-w-2xl rounded-none p-0 flex flex-col [&>div:first-child]:hidden">
+        <DrawerHeader className="px-6 py-4 border-b border-border shrink-0">
+          <DrawerTitle className="font-display">Apply</DrawerTitle>
+          <DrawerDescription className="line-clamp-2 text-sm text-muted-foreground">
+            {jobTitle}
+          </DrawerDescription>
+        </DrawerHeader>
 
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-4 px-4"
-          >
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-col gap-4 px-6 py-5">
             <div className="space-y-1.5">
               <Label htmlFor="coverNote">
                 Cover Note{" "}
@@ -76,21 +72,17 @@ export function ApplyDrawer({
                 {coverNote.length}/2000
               </p>
             </div>
+          </div>
 
-            <DrawerFooter className="px-0">
-              <Button type="submit" disabled={loading}>
-                {loading ? "Submitting..." : "Submit Application"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-            </DrawerFooter>
-          </form>
-        </div>
+          <div className="mt-auto border-t border-border px-6 py-4 flex flex-col gap-2">
+            <Button type="submit" disabled={loading}>
+              {loading ? "Submitting..." : "Submit Application"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </DrawerContent>
     </Drawer>
   );

@@ -1,4 +1,4 @@
-import { Building2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,6 +17,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { useJobApplications, useUpdateApplicationStatus } from "@/hooks/use-applications";
@@ -31,90 +46,152 @@ const statusColors: Record<ApplicationStatus, string> = {
   rejected: "bg-zinc-100 text-zinc-500",
 };
 
-function ApplicationCard({
-  application,
-  onStatusChange,
-}: {
-  application: Application;
-  onStatusChange: () => void;
-}) {
-  const { execute: updateStatus } = useUpdateApplicationStatus();
-  const statuses: ApplicationStatus[] = [
-    "pending",
-    "reviewed",
-    "accepted",
-    "rejected",
-  ];
+const statusLabels: ApplicationStatus[] = ["pending", "reviewed", "accepted", "rejected"];
 
-  async function handleStatus(s: ApplicationStatus) {
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function ApplicantsDrawer({
+  job,
+  open,
+  onOpenChange,
+}: {
+  job: Job | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: apps, loading, refetch } = useJobApplications(job?.id ?? "");
+  const { execute: updateStatus } = useUpdateApplicationStatus();
+  const [selected, setSelected] = useState<Application | null>(null);
+
+  // Auto-select first applicant when list loads
+  useEffect(() => {
+    if (apps.length > 0 && !selected) setSelected(apps[0]);
+  }, [apps, selected]);
+
+  // Keep selected in sync after a status update
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = apps.find((a) => a.id === selected.id);
+    if (fresh) setSelected(fresh);
+  }, [apps]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleStatusChange(status: ApplicationStatus) {
+    if (!selected) return;
     try {
-      await updateStatus(application.id, s);
-      toast.success(`Status updated to ${s}`);
-      onStatusChange();
+      await updateStatus(selected.id, status);
+      toast.success(`Status updated to ${status}`);
+      refetch();
     } catch {
       toast.error("Failed to update status");
     }
   }
 
   return (
-    <div className="rounded-md border border-border bg-card p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-medium text-sm text-card-foreground">
-            {application.user?.email ?? "Applicant"}
-          </p>
-          {application.cover_note && (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-              {application.cover_note}
-            </p>
-          )}
-        </div>
-        <Badge
-          className={`font-mono text-xs capitalize shrink-0 ${statusColors[application.status]}`}
-          variant="outline"
-        >
-          {application.status}
-        </Badge>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {statuses.map((s) => (
-          <Button
-            key={s}
-            variant={application.status === s ? "default" : "outline"}
-            size="sm"
-            className="h-6 px-2 font-mono text-xs capitalize"
-            onClick={() => handleStatus(s)}
-            disabled={application.status === s}
-          >
-            {s}
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
-}
+    <Drawer open={open} onOpenChange={onOpenChange} direction="right" shouldScaleBackground={false}>
+      <DrawerContent className="inset-y-0 right-0 left-auto mt-0 h-full w-full max-w-2xl rounded-none p-0 flex flex-col [&>div:first-child]:hidden">
+        <DrawerHeader className="px-6 py-4 border-b border-border shrink-0">
+          <DrawerTitle className="font-display">
+            {job?.title ?? "Applicants"}
+          </DrawerTitle>
+        </DrawerHeader>
 
-function JobApplicationsPanel({
-  jobId,
-  onStatusChange,
-}: {
-  jobId: string;
-  onStatusChange: () => void;
-}) {
-  const { data: apps, loading } = useJobApplications(jobId);
+        {loading ? (
+          <div className="p-6 space-y-3">
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
+        ) : apps.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-sm text-muted-foreground">No applicants yet.</p>
+          </div>
+        ) : (
+          <div className="flex flex-1 min-h-0">
+            {/* Left: applicant list */}
+            <div className="w-56 shrink-0 border-r border-border overflow-y-auto">
+              {apps.map((app) => (
+                <button
+                  key={app.id}
+                  onClick={() => setSelected(app)}
+                  className={`w-full text-left px-4 py-3 border-b border-border transition-colors hover:bg-muted/50 ${
+                    selected?.id === app.id ? "bg-muted" : ""
+                  }`}
+                >
+                  <p className="text-sm font-medium truncate text-foreground">
+                    {app.user?.email ?? "Applicant"}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {formatDate(app.applied_at)}
+                    </span>
+                    <span
+                      className={`font-mono text-xs capitalize rounded px-1.5 py-0.5 ${statusColors[app.status]}`}
+                    >
+                      {app.status}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
 
-  if (loading) {
-    return <p className="text-xs text-muted-foreground">Loading applicants…</p>;
-  }
-  if (apps.length === 0) {
-    return <p className="text-xs text-muted-foreground">No applicants yet.</p>;
-  }
-  return (
-    <div className="space-y-2">
-      {apps.map((app) => (
-        <ApplicationCard key={app.id} application={app} onStatusChange={onStatusChange} />
-      ))}
-    </div>
+            {/* Right: detail pane */}
+            {selected ? (
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {selected.user?.email ?? "Applicant"}
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">
+                      Applied {formatDate(selected.applied_at)}
+                    </p>
+                  </div>
+                  <Select
+                    value={selected.status}
+                    onValueChange={(v) => handleStatusChange(v as ApplicationStatus)}
+                  >
+                    <SelectTrigger className="w-36 font-mono text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusLabels.map((s) => (
+                        <SelectItem key={s} value={s} className="font-mono text-xs capitalize">
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Cover Letter
+                    </p>
+                  </div>
+                  {selected.cover_note ? (
+                    <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                      {selected.cover_note}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No cover letter provided.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -138,7 +215,7 @@ export function DashboardPage() {
   const [companyDrawerOpen, setCompanyDrawerOpen] = useState(false);
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
-  const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  const [applicantsJob, setApplicantsJob] = useState<Job | null>(null);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
 
   useEffect(() => {
@@ -256,67 +333,54 @@ export function DashboardPage() {
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {jobs.map((job) => {
-                const isExpanded = expandedJob === job.id;
-                return (
-                  <Card key={job.id} className="flex flex-col">
-                    <div className="flex flex-1 flex-col p-4">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <span className="font-display font-semibold text-sm text-card-foreground leading-snug">
-                          {job.title}
-                        </span>
-                        <Badge
-                          className={`shrink-0 font-mono text-xs capitalize border-transparent ${
-                            job.status === "open"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-zinc-100 text-zinc-500"
-                          }`}
-                        >
-                          {job.status}
-                        </Badge>
-                      </div>
-                      <div className="mt-auto flex items-center gap-1">
+              {jobs.map((job) => (
+                <Card key={job.id} className="flex flex-col">
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <span className="font-display font-semibold text-sm text-card-foreground leading-snug">
+                        {job.title}
+                      </span>
+                      <Badge
+                        className={`shrink-0 font-mono text-xs capitalize border-transparent ${
+                          job.status === "open"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-zinc-100 text-zinc-500"
+                        }`}
+                      >
+                        {job.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-auto flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 font-mono text-xs"
+                        onClick={() => setApplicantsJob(job)}
+                      >
+                        View applicants
+                      </Button>
+                      <div className="ml-auto flex items-center gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 font-mono text-xs"
-                          onClick={() =>
-                            setExpandedJob(isExpanded ? null : job.id)
-                          }
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openEditJob(job)}
                         >
-                          {isExpanded ? "Hide" : "View"} applicants
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <div className="ml-auto flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => openEditJob(job)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => setJobToDelete(job.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setJobToDelete(job.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
-                    {isExpanded && (
-                      <div className="border-t border-border p-4">
-                        <JobApplicationsPanel
-                          jobId={job.id}
-                          onStatusChange={() => {}}
-                        />
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
         </div>
@@ -357,6 +421,12 @@ export function DashboardPage() {
         onOpenChange={setJobDrawerOpen}
         job={editingJob}
         onSuccess={refetchJobs}
+      />
+
+      <ApplicantsDrawer
+        job={applicantsJob}
+        open={applicantsJob !== null}
+        onOpenChange={(open: boolean) => { if (!open) setApplicantsJob(null); }}
       />
     </div>
   );

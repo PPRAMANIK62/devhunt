@@ -48,7 +48,7 @@ export function JobDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <Button
         variant="ghost"
         size="sm"
@@ -59,95 +59,110 @@ export function JobDetailPage() {
         All jobs
       </Button>
 
-      <div className="space-y-1">
-        <h1 className="font-display text-3xl font-bold tracking-tight">
-          {job.title}
-        </h1>
-        {job.company && (
-          <p className="text-lg font-medium text-muted-foreground">
-            {job.company.name}
-          </p>
-        )}
-      </div>
+      <div className="flex gap-10">
+        {/* Main content */}
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            {job.title}
+          </h1>
 
-      <div className="mt-4 flex flex-wrap items-center gap-4">
-        <span className="flex items-center gap-1 font-mono text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
-          {job.location}
-        </span>
-        <span className="font-mono text-sm font-medium text-foreground">
-          {formatSalary(job.salary_min, job.salary_max)}
-        </span>
-        <span className="flex items-center gap-1.5 font-mono text-xs">
-          <span
-            className={`inline-block h-1.5 w-1.5 rounded-full ${
-              job.status === "open"
-                ? "bg-green-500"
-                : job.status === "draft"
-                  ? "bg-amber-500"
-                  : "bg-zinc-400"
-            }`}
-          />
-          <span className="capitalize text-muted-foreground">{job.status}</span>
-        </span>
-      </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <span className="flex items-center gap-1 font-mono text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5" />
+              {job.location}
+            </span>
+            <span className="font-mono text-sm font-medium text-foreground">
+              {formatSalary(job.salary_min, job.salary_max)}
+            </span>
+            <span className="flex items-center gap-1.5 font-mono text-xs">
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                  job.status === "open"
+                    ? "bg-green-500"
+                    : job.status === "draft"
+                      ? "bg-amber-500"
+                      : "bg-zinc-400"
+                }`}
+              />
+              <span className="capitalize text-muted-foreground">{job.status}</span>
+            </span>
+          </div>
 
-      {job.tags && job.tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {job.tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="font-mono text-xs">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      <Separator className="my-6" />
-
-      <div className="prose prose-zinc max-w-none">
-        <p className="whitespace-pre-wrap leading-relaxed text-foreground/90">
-          {job.description}
-        </p>
-      </div>
-
-      {job.status === "open" && (
-        <div className="mt-8">
-          {isAuthenticated && role === "seeker" ? (
-            hasApplied ? (
-              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    You've already applied
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    Track your application status in{" "}
-                    <Link
-                      to="/applications"
-                      className="underline underline-offset-2 hover:text-foreground"
-                    >
-                      My Applications
-                    </Link>
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <Button size="lg" onClick={() => setApplyOpen(true)}>
-                Apply for this position
-              </Button>
-            )
-          ) : !isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              <Button size="lg" asChild>
-                <Link to="/login">Log in to apply</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link to="/register">Sign up</Link>
-              </Button>
+          {job.tags && job.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {job.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="font-mono text-xs">
+                  {tag}
+                </Badge>
+              ))}
             </div>
-          ) : null}
+          )}
+
+          <Separator className="my-6" />
+
+          <div className="prose prose-zinc max-w-none">
+            <p className="whitespace-pre-wrap leading-relaxed text-foreground/90">
+              {job.description}
+            </p>
+          </div>
         </div>
-      )}
+
+        {/* Sidebar */}
+        <div className="w-64 shrink-0">
+          <div className="sticky top-6 space-y-4">
+            {/* Company card */}
+            {job.company && (
+              <div className="py-3 border-b border-border">
+                <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+                  Company
+                </p>
+                <p className="mt-1 font-display text-base font-semibold text-foreground">
+                  {job.company.name}
+                </p>
+              </div>
+            )}
+
+            {/* Apply action */}
+            {job.status === "open" && (
+              <div>
+                {isAuthenticated && role === "seeker" ? (
+                  hasApplied ? (
+                    <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          Already applied
+                        </p>
+                        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                          <Link
+                            to="/applications"
+                            className="underline underline-offset-2 hover:text-foreground"
+                          >
+                            Track status
+                          </Link>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button className="w-full" size="lg" onClick={() => setApplyOpen(true)}>
+                      Apply now
+                    </Button>
+                  )
+                ) : !isAuthenticated ? (
+                  <div className="space-y-2">
+                    <Button className="w-full" size="lg" asChild>
+                      <Link to="/login">Log in to apply</Link>
+                    </Button>
+                    <Button className="w-full" size="lg" variant="outline" asChild>
+                      <Link to="/register">Sign up</Link>
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       <ApplyDrawer
         open={applyOpen}

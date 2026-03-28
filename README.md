@@ -1,17 +1,31 @@
 # devhunt
 
-A job board REST API built with Go. Companies post jobs, seekers apply.
+A job board built with Go (primary) and a React frontend. Companies post jobs, seekers apply.
 
 ## Stack
 
+**Backend (primary)**
 - **Go 1.25** — chi router, pgx/v5 (postgres), golang-jwt, go-playground/validator
 - **Postgres** — all persistence
+
+**Frontend (`web/`)**
+- **React 19** + TypeScript + Vite + Tailwind v4
+- **shadcn/ui** (Radix UI primitives) — thin wrapper over the Go API, no client-side business logic
 
 ## Setup
 
 ```bash
 cp .env.example .env  # fill in values
-go run ./cmd/api
+go run ./cmd/api      # API on :8080
+```
+
+### Frontend
+
+```bash
+cd web
+bun install
+bun dev              # dev server on :5173, proxies /api/v1 → :8080
+bun run build        # production build → web/dist/
 ```
 
 ### Seed data

@@ -1,0 +1,6 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Use 80 for Prettier compatibility
+  "printWidth": 80,
+  "ignorePatterns": ["dist", "node_modules", ".sisyphus"],
+}

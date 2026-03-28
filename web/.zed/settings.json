@@ -1,0 +1,62 @@
+{
+  "format_on_save": "on",
+  "formatter": {
+    "external": {
+      "command": "oxfmt",
+      "arguments": ["--write", "{buffer_path}"]
+    }
+  },
+  "languages": {
+    "TypeScript": {
+      "formatter": {
+        "external": {
+          "command": "oxfmt",
+          "arguments": ["--write", "{buffer_path}"]
+        }
+      }
+    },
+    "TSX": {
+      "formatter": {
+        "external": {
+          "command": "oxfmt",
+          "arguments": ["--write", "{buffer_path}"]
+        }
+      }
+    },
+    "JavaScript": {
+      "formatter": {
+        "external": {
+          "command": "oxfmt",
+          "arguments": ["--write", "{buffer_path}"]
+        }
+      }
+    },
+    "JSON": {
+      "formatter": {
+        "external": {
+          "command": "oxfmt",
+          "arguments": ["--write", "{buffer_path}"]
+        }
+      }
+    },
+    "CSS": {
+      "formatter": {
+        "external": {
+          "command": "oxfmt",
+          "arguments": ["--write", "{buffer_path}"]
+        }
+      }
+    }
+  },
+  "lsp": {
+    "oxlint": {
+      "initialization_options": {
+        "settings": {
+          "run": "onType"
+        }
+      }
+    }
+  },
+  "tab_size": 2,
+  "hard_tabs": false
+}

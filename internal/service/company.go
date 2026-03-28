@@ -18,8 +18,8 @@ func NewCompanyService(repo *repository.CompanyRepository) *CompanyService {
 
 func (s *CompanyService) Create(ctx context.Context, userID string, req models.CreateCompanyRequest) (*models.Company, error) {
 	// Enforce one-company-per-user
-	existing, _ := s.repo.FindByUserID(ctx, userID)
-	if existing != nil {
+	existing, err := s.repo.FindByUserID(ctx, userID)
+	if err == nil && existing != nil {
 		return nil, apperr.Conflict("company profile already exists")
 	}
 

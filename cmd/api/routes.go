@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/PPRAMANIK62/devhunt/internal/handler"
 	appmiddleware "github.com/PPRAMANIK62/devhunt/internal/middleware"
@@ -27,10 +28,18 @@ func setupRoutes(
 	r.Use(appmiddleware.RequestLogger) // replaces fmt.Println logging
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/auth/register", authHandler.Register)
-		r.Post("/auth/login", authHandler.Login)
-		r.Get("/auth/verify-email", authHandler.VerifyEmail)
-		r.Post("/auth/resend-verification", authHandler.ResendVerification)
+		r.Route("/auth", func(r chi.Router) {
+			// verify-email is excluded: tokens are high-entropy (can't brute-force)
+			// and email clients may pre-fetch the link before the user clicks it.
+			r.Get("/verify-email", authHandler.VerifyEmail)
+
+			r.Group(func(r chi.Router) {
+				r.Use(appmiddleware.RateLimit(5, time.Minute))
+				r.Post("/register", authHandler.Register)
+				r.Post("/login", authHandler.Login)
+				r.Post("/resend-verification", authHandler.ResendVerification)
+			})
+		})
 
 		r.Route("/jobs", func(r chi.Router) {
 			r.Get("/", jobHandler.List)

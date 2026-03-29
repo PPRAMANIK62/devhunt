@@ -9,6 +9,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type redisNoopLogger struct{}
+
+func (l *redisNoopLogger) Printf(_ context.Context, _ string, _ ...any) {}
+
+func init() {
+	// Suppress noisy redis reconnect/PING logs globally.
+	// Note: this also silences the queue (Asynq) redis client.
+	redis.SetLogger(&redisNoopLogger{})
+}
+
 type Cache struct {
 	client *redis.Client
 }

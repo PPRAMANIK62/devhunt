@@ -44,29 +44,29 @@ func main() {
 		appCache, err = cache.New(cfg.RedisURL)
 		if err != nil {
 			// Not fatal - app works without caching
-			slog.Warn("redis unavailable, caching disabled", "error", err)
+			slog.Warn("redis unavailable, caching and email notifications disabled", "error", err)
 		} else {
 			defer appCache.Close()
-		}
 
-		queueClient, err = queue.NewClient(cfg.RedisURL)
-		if err != nil {
-			slog.Warn("queue client unavailable, email notifications disabled", "error", err)
-		} else {
-			defer queueClient.Close()
-		}
+			queueClient, err = queue.NewClient(cfg.RedisURL)
+			if err != nil {
+				slog.Warn("queue client unavailable, email notifications disabled", "error", err)
+			} else {
+				defer queueClient.Close()
+			}
 
-		workerSrv, workerMux, err := queue.NewWorkerServer(cfg.RedisURL, cfg.ResendAPIKey, cfg.AppBaseURL)
-		if err != nil {
-			slog.Warn("queue worker unavailable", "error", err)
-		} else {
-			go func() {
-				slog.Info("queue worker started")
-				if err := workerSrv.Run(workerMux); err != nil {
-					slog.Error("queue worker stopped", "error", err)
-				}
-			}()
-			defer workerSrv.Shutdown()
+			workerSrv, workerMux, err := queue.NewWorkerServer(cfg.RedisURL, cfg.ResendAPIKey, cfg.AppBaseURL)
+			if err != nil {
+				slog.Warn("queue worker unavailable", "error", err)
+			} else {
+				go func() {
+					slog.Info("queue worker started")
+					if err := workerSrv.Run(workerMux); err != nil {
+						slog.Error("queue worker stopped", "error", err)
+					}
+				}()
+				defer workerSrv.Shutdown()
+			}
 		}
 	}
 

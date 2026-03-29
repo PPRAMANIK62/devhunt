@@ -43,7 +43,9 @@ export function LoginPage() {
       const payload = decodeToken(res.token);
       navigate(payload?.role === "company" ? "/dashboard" : "/applications");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
+      if (err instanceof ApiError && err.status === 429) {
+        toast.error("Too many attempts. Please wait a minute before trying again.");
+      } else if (err instanceof ApiError && err.status === 403) {
         setUnverified(true);
       } else {
         toast.error(err instanceof Error ? err.message : "Invalid credentials");

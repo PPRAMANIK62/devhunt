@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { User } from "@/types";
 
 interface RegisterResponse {
@@ -41,7 +41,11 @@ export function RegisterPage() {
       await api.post<RegisterResponse>("/auth/register", { email, password, role });
       setRegistered(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Registration failed");
+      if (err instanceof ApiError && err.status === 429) {
+        toast.error("Too many attempts. Please wait a minute before trying again.");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Registration failed");
+      }
     } finally {
       setLoading(false);
     }

@@ -14,12 +14,12 @@ import (
 )
 
 type JobService struct {
-	jobRepo     *repository.JobRepository
-	companyRepo *repository.CompanyRepository
+	jobRepo     repository.JobRepo
+	companyRepo repository.CompanyRepo
 	cache       *cache.Cache
 }
 
-func NewJobService(jobRepo *repository.JobRepository, companyRepo *repository.CompanyRepository, c *cache.Cache) *JobService {
+func NewJobService(jobRepo repository.JobRepo, companyRepo repository.CompanyRepo, c *cache.Cache) *JobService {
 	return &JobService{
 		jobRepo:     jobRepo,
 		companyRepo: companyRepo,

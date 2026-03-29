@@ -14,18 +14,18 @@ import (
 )
 
 type ApplicationService struct {
-	appRepo     *repository.ApplicationRepository
-	jobRepo     *repository.JobRepository
-	companyRepo *repository.CompanyRepository
-	userRepo    *repository.UserRepository
+	appRepo     repository.ApplicationRepo
+	jobRepo     repository.JobRepo
+	companyRepo repository.CompanyRepo
+	userRepo    repository.UserRepo
 	queue       *queue.Client // nil - no background jobs
 }
 
 func NewApplicationService(
-	appRepo *repository.ApplicationRepository,
-	jobRepo *repository.JobRepository,
-	companyRepo *repository.CompanyRepository,
-	userRepo *repository.UserRepository,
+	appRepo repository.ApplicationRepo,
+	jobRepo repository.JobRepo,
+	companyRepo repository.CompanyRepo,
+	userRepo repository.UserRepo,
 	q *queue.Client,
 ) *ApplicationService {
 	return &ApplicationService{

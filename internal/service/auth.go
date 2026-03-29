@@ -23,13 +23,13 @@ type Claims struct {
 }
 
 type AuthService struct {
-	userRepo  *repository.UserRepository
+	userRepo  repository.UserRepo
 	jwtSecret string
 	jwtExpiry time.Duration
 	queue     *queue.Client // nil = no email sending
 }
 
-func NewAuthService(userRepo *repository.UserRepository, secret string, expiryMinutes int, q *queue.Client) *AuthService {
+func NewAuthService(userRepo repository.UserRepo, secret string, expiryMinutes int, q *queue.Client) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
 		jwtSecret: secret,

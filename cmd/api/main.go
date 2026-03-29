@@ -29,8 +29,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Logger
 	logger.SetupLogger(cfg.Env)
 	slog.Info("devhunt starting", "port", cfg.ServerPort, "env", cfg.Env)
+
+	// Run migrations
+	if err := database.RunMigrations(cfg.DatabaseURL); err != nil {
+		slog.Error("migrations failed", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("migrations applied")
 
 	ctx := context.Background()
 

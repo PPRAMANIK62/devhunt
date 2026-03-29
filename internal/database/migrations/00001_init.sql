@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE user_role AS ENUM ('seeker', 'company', 'admin');
@@ -68,3 +69,15 @@ CREATE INDEX idx_jobs_status     ON jobs(status);
 CREATE INDEX idx_jobs_created_at ON jobs(created_at DESC);
 CREATE INDEX idx_applications_job_id  ON applications(job_id);
 CREATE INDEX idx_applications_user_id ON applications(user_id);
+
+-- +goose Down
+DROP TABLE IF EXISTS applications;
+DROP TABLE IF EXISTS job_tags;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS companies;
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS application_status;
+DROP TYPE IF EXISTS job_status;
+DROP TYPE IF EXISTS user_role;
+DROP EXTENSION IF EXISTS "pgcrypto";

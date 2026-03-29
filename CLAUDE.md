@@ -11,7 +11,19 @@ go test ./...
 go test ./internal/handler/... -run TestCompanyCreate        # single function
 go test ./internal/handler/... -run TestCompanyCreate/success # single sub-test
 go test ./... -count=1                                        # bypass cache
+make test                                                     # spin up test Postgres via Docker, run all tests, tear down
 ```
+
+### Migrations (goose)
+
+```bash
+make migrate-up                        # apply all pending migrations
+make migrate-down                      # roll back one migration
+make migrate-status                    # show migration state
+make migrate-create name=add_foo_bar   # scaffold a new migration file
+```
+
+Migrations live in `internal/database/migrations/`. Files follow the `NNNNN_description.sql` naming convention (not goose's default timestamp prefix — rename after generating).
 
 ## Architecture
 

@@ -16,8 +16,21 @@ A job board built with Go (primary) and a React frontend. Companies post jobs, s
 
 ## Setup
 
+### With Docker (recommended)
+
 ```bash
-cp .env.example .env  # fill in values
+cp .env.example .env  # fill in POSTGRES_PASSWORD and JWT_SECRET
+make up               # builds and starts API + Postgres + Redis
+make seed             # optional: seed the database
+```
+
+Other useful Make targets: `make down`, `make down-volumes` (wipes data), `make logs`, `make ps`.
+
+### Local (no Docker)
+
+```bash
+cp .env.example .env  # fill in all values
+make migrate-up       # run goose migrations (requires goose installed)
 go run ./cmd/api      # API on :8080
 ```
 
@@ -47,13 +60,16 @@ Seed accounts (password: `password123`):
 
 ### Environment variables
 
-| Variable             | Required | Default       | Description                   |
-| -------------------- | -------- | ------------- | ----------------------------- |
-| `DATABASE_URL`       | yes      | —             | Postgres connection string    |
-| `JWT_SECRET`         | yes      | —             | Signing secret for JWT tokens |
-| `SERVER_PORT`        | no       | `8080`        | HTTP listen port              |
-| `JWT_EXPIRY_MINUTES` | no       | `10`          | Token lifetime                |
-| `ENV`                | no       | `development` | Environment name              |
+| Variable             | Required | Default       | Description                              |
+| -------------------- | -------- | ------------- | ---------------------------------------- |
+| `DATABASE_URL`       | yes      | —             | Postgres connection string               |
+| `JWT_SECRET`         | yes      | —             | Signing secret for JWT tokens            |
+| `REDIS_URL`          | yes      | —             | Redis connection string                  |
+| `RESEND_API_KEY`     | no       | —             | Resend API key for transactional email   |
+| `APP_BASE_URL`       | no       | —             | Frontend base URL (used in email links)  |
+| `SERVER_PORT`        | no       | `8080`        | HTTP listen port                         |
+| `JWT_EXPIRY_MINUTES` | no       | `10`          | Token lifetime                           |
+| `ENV`                | no       | `development` | Environment name                         |
 
 ## API
 
@@ -62,8 +78,10 @@ All routes are under `/api/v1`.
 ### Auth
 
 ```
-POST /auth/register   body: { email, password, role: "seeker"|"company" }
-POST /auth/login      body: { email, password }  → { token, user }
+POST /auth/register              body: { email, password, role: "seeker"|"company" }
+POST /auth/login                 body: { email, password }  → { token, user }
+GET  /auth/verify-email          ?token=<jwt>  — confirms email address
+POST /auth/resend-verification   body: { email }
 ```
 
 ### Jobs

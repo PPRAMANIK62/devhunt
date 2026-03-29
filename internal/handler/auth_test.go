@@ -15,8 +15,10 @@ import (
 )
 
 type stubAuthService struct {
-	registerFn func(ctx context.Context, input service.RegisterInput) (*models.User, error)
-	loginFn    func(ctx context.Context, email, password string) (*service.LoginOutput, error)
+	registerFn           func(ctx context.Context, input service.RegisterInput) (*models.User, error)
+	loginFn              func(ctx context.Context, email, password string) (*service.LoginOutput, error)
+	verifyEmailFn        func(ctx context.Context, token string) error
+	resendVerificationFn func(ctx context.Context, email string) error
 }
 
 func (s *stubAuthService) Register(ctx context.Context, input service.RegisterInput) (*models.User, error) {
@@ -25,6 +27,20 @@ func (s *stubAuthService) Register(ctx context.Context, input service.RegisterIn
 
 func (s *stubAuthService) Login(ctx context.Context, email, password string) (*service.LoginOutput, error) {
 	return s.loginFn(ctx, email, password)
+}
+
+func (s *stubAuthService) VerifyEmail(ctx context.Context, token string) error {
+	if s.verifyEmailFn != nil {
+		return s.verifyEmailFn(ctx, token)
+	}
+	return nil
+}
+
+func (s *stubAuthService) ResendVerification(ctx context.Context, email string) error {
+	if s.resendVerificationFn != nil {
+		return s.resendVerificationFn(ctx, email)
+	}
+	return nil
 }
 
 func TestAuthRegister(t *testing.T) {

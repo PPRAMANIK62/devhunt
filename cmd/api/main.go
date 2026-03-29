@@ -11,6 +11,7 @@ import (
 	"github.com/PPRAMANIK62/devhunt/internal/config"
 	"github.com/PPRAMANIK62/devhunt/internal/database"
 	"github.com/PPRAMANIK62/devhunt/internal/handler"
+	"github.com/PPRAMANIK62/devhunt/internal/logger"
 	"github.com/PPRAMANIK62/devhunt/internal/middleware"
 	"github.com/PPRAMANIK62/devhunt/internal/queue"
 	"github.com/PPRAMANIK62/devhunt/internal/repository"
@@ -24,11 +25,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	logger.SetupLogger(cfg.Env)
+	slog.Info("devhunt starting", "port", cfg.ServerPort, "env", cfg.Env)
+
 	ctx := context.Background()
 
 	db, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "database error: %v\n", err)
+		slog.Error("database error", "error", err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -98,9 +102,9 @@ func main() {
 		companyMW,
 	)
 
-	fmt.Printf("server listening on :%s\n", cfg.ServerPort)
+	slog.Info("server listening", "port", cfg.ServerPort)
 	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
-		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+		slog.Error("server error", "error", err)
 		os.Exit(1)
 	}
 }

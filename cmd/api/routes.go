@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/PPRAMANIK62/devhunt/internal/handler"
+	appmiddleware "github.com/PPRAMANIK62/devhunt/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -23,6 +24,7 @@ func setupRoutes(
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
+	r.Use(appmiddleware.RequestLogger) // replaces fmt.Println logging
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/register", authHandler.Register)

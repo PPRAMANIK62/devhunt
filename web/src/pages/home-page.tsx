@@ -74,7 +74,7 @@ export function HomePage() {
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="font-display text-4xl font-bold text-foreground">
-            {loading ? "—" : filterOptions.locations.length}
+            {loading ? "—" : (filterOptions.locations ?? []).length}
           </p>
           <p className="mt-1 font-mono text-sm text-muted-foreground">
             cities &amp; regions
@@ -82,7 +82,7 @@ export function HomePage() {
         </div>
         <div className="col-span-2 rounded-lg border border-border bg-card p-6 sm:col-span-1">
           <p className="font-display text-4xl font-bold text-foreground">
-            {loading ? "—" : filterOptions.tags.length}
+            {loading ? "—" : (filterOptions.tags ?? []).length}
           </p>
           <p className="mt-1 font-mono text-sm text-muted-foreground">
             tech stacks

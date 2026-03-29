@@ -11,7 +11,6 @@ import (
 type Config struct {
 	DatabaseURL      string
 	RedisURL         string
-	ElasticsearchURL string
 	JWTSecret        string
 	JWTExpiryMinutes int
 	ServerPort       string
@@ -26,14 +25,13 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		RedisURL:         os.Getenv("REDIS_URL"),
-		ElasticsearchURL: os.Getenv("ELASTICSEARCH_URL"),
-		JWTSecret:        os.Getenv("JWT_SECRET"),
-		ServerPort:       os.Getenv("SERVER_PORT"),
-		Env:              os.Getenv("ENV"),
-		ResendAPIKey:     os.Getenv("RESEND_API_KEY"),
-		AppBaseURL:       os.Getenv("APP_BASE_URL"),
+		DatabaseURL:  os.Getenv("DATABASE_URL"),
+		RedisURL:     os.Getenv("REDIS_URL"),
+		JWTSecret:    os.Getenv("JWT_SECRET"),
+		ServerPort:   os.Getenv("SERVER_PORT"),
+		Env:          os.Getenv("ENV"),
+		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
+		AppBaseURL:   os.Getenv("APP_BASE_URL"),
 	}
 
 	// Fail immediately if critical values are missing.

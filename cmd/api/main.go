@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/PPRAMANIK62/devhunt/internal/cache"
 	"github.com/PPRAMANIK62/devhunt/internal/config"
@@ -30,6 +34,7 @@ func main() {
 
 	ctx := context.Background()
 
+	// Postgres (required)
 	db, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		slog.Error("database error", "error", err)
@@ -41,6 +46,7 @@ func main() {
 	var queueClient *queue.Client
 	if cfg.RedisURL != "" {
 		var err error
+		// Redis (optional)
 		appCache, err = cache.New(cfg.RedisURL)
 		if err != nil {
 			// Not fatal - app works without caching
@@ -48,6 +54,7 @@ func main() {
 		} else {
 			defer appCache.Close()
 
+			// Queue (optional)
 			queueClient, err = queue.NewClient(cfg.RedisURL)
 			if err != nil {
 				slog.Warn("queue client unavailable, email notifications disabled", "error", err)
@@ -55,6 +62,7 @@ func main() {
 				defer queueClient.Close()
 			}
 
+			// email worker
 			workerSrv, workerMux, err := queue.NewWorkerServer(cfg.RedisURL, cfg.ResendAPIKey, cfg.AppBaseURL)
 			if err != nil {
 				slog.Warn("queue worker unavailable", "error", err)
@@ -102,9 +110,40 @@ func main() {
 		companyMW,
 	)
 
-	slog.Info("server listening", "port", cfg.ServerPort)
-	if err := http.ListenAndServe(":"+cfg.ServerPort, router); err != nil {
-		slog.Error("server error", "error", err)
-		os.Exit(1)
+	// HTTP server
+	srv := &http.Server{
+		Addr:         ":" + cfg.ServerPort,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	// Run server in background so signal listener isn't blocked
+	go func() {
+		slog.Info("server listening", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("server error", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Graceful shutdown
+	// Block until SIGTERM or Ctrl+C
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	sig := <-quit
+
+	slog.Info("shutdown signal received", "signal", sig.String())
+
+	// Give in-flight requests 30 seconds to finish
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("forced shutdown", "error", err)
+	}
+
+	slog.Info("server stopped cleanly")
+	// defer db.Close() and other deferred cleanup runs here
 }

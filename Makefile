@@ -39,3 +39,7 @@ seed:
 test:
 	docker compose -f docker-compose.test.yml up -d --wait
 	go test ./... -count=1; docker compose -f docker-compose.test.yml down
+
+docs:
+	swag init -g cmd/api/main.go -o docs/
+	@echo "Docs generated. Visit http://localhost:8080/docs/index.html"

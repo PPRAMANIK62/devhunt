@@ -32,6 +32,19 @@ func newCompanyHandlerWithService(s companyServicer) *CompanyHandler {
 	return &CompanyHandler{companySvc: s}
 }
 
+// Create godoc
+// @Summary      Create a company profile
+// @Tags         companies
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body  models.CreateCompanyRequest  true  "Company details"
+// @Success      201  {object}  map[string]any
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Router       /companies [post]
 func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateCompanyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -51,6 +64,16 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, http.StatusCreated, company)
 }
 
+// GetMine godoc
+// @Summary      Get the authenticated company's profile
+// @Tags         companies
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]any
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Router       /companies/me [get]
 func (h *CompanyHandler) GetMine(w http.ResponseWriter, r *http.Request) {
 	company, err := h.companySvc.GetMine(r.Context(), middleware.GetUserID(r.Context()))
 	if err != nil {
@@ -60,6 +83,14 @@ func (h *CompanyHandler) GetMine(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, http.StatusOK, company)
 }
 
+// GetByID godoc
+// @Summary      Get a company by ID
+// @Tags         companies
+// @Produce      json
+// @Param        id  path  string  true  "Company ID"
+// @Success      200  {object}  map[string]any
+// @Failure      404  {object}  map[string]string
+// @Router       /companies/{id} [get]
 func (h *CompanyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	company, err := h.companySvc.GetByID(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
@@ -69,6 +100,19 @@ func (h *CompanyHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, http.StatusOK, company)
 }
 
+// Update godoc
+// @Summary      Update the authenticated company's profile
+// @Tags         companies
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body  models.UpdateCompanyRequest  true  "Fields to update"
+// @Success      200  {object}  map[string]any
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Router       /companies/me [patch]
 func (h *CompanyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdateCompanyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -88,6 +132,15 @@ func (h *CompanyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, http.StatusOK, company)
 }
 
+// Delete godoc
+// @Summary      Delete the authenticated company's profile
+// @Tags         companies
+// @Security     BearerAuth
+// @Success      204
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Router       /companies/me [delete]
 func (h *CompanyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.companySvc.Delete(r.Context(), middleware.GetUserID(r.Context())); err != nil {
 		writeError(w, err)

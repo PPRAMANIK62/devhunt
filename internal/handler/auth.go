@@ -35,6 +35,16 @@ type registerRequest struct {
 	Role     models.UserRole `json:"role"     validate:"required,oneof=seeker company"`
 }
 
+// Register godoc
+// @Summary      Register a new user
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body registerRequest true "Registration details"
+// @Success      201  {object}  map[string]any
+// @Failure      400  {object}  map[string]string
+// @Failure      409  {object}  map[string]string
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -64,6 +74,16 @@ type loginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+// Login godoc
+// @Summary      Login and receive a JWT token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body loginRequest true "Login credentials"
+// @Success      200  {object}  map[string]any
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -87,6 +107,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// VerifyEmail godoc
+// @Summary      Verify email address
+// @Tags         auth
+// @Produce      json
+// @Param        token  query  string  true  "Verification token"
+// @Success      200  {object}  map[string]any
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Router       /auth/verify-email [get]
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -106,6 +135,15 @@ type resendVerificationRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
 
+// ResendVerification godoc
+// @Summary      Resend email verification link
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body resendVerificationRequest true "Email address"
+// @Success      200  {object}  map[string]any
+// @Failure      400  {object}  map[string]string
+// @Router       /auth/resend-verification [post]
 func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	var req resendVerificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

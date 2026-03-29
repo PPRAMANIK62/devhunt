@@ -73,7 +73,8 @@ Seed accounts (password: `password123`):
 
 ## API
 
-All routes are under `/api/v1`.
+All routes are under `/api/v1`. Interactive docs are served at `http://localhost:8080/docs/index.html` when the server is running (regenerate with `make docs`).
+
 
 ### Auth
 

@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/PPRAMANIK62/devhunt/docs"
 	"github.com/PPRAMANIK62/devhunt/internal/cache"
 	"github.com/PPRAMANIK62/devhunt/internal/config"
 	"github.com/PPRAMANIK62/devhunt/internal/database"
@@ -21,6 +22,18 @@ import (
 	"github.com/PPRAMANIK62/devhunt/internal/repository"
 	"github.com/PPRAMANIK62/devhunt/internal/service"
 )
+
+// @title           DevHunt API
+// @version         1.0
+// @description     A job board API for developers.
+
+// @host            localhost:8080
+// @BasePath        /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and the JWT token.
 
 func main() {
 	cfg, err := config.Load()
